@@ -1,29 +1,11 @@
-FROM node:24-alpine AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-
-FROM base AS build
-WORKDIR /app
-COPY . /app
-
-RUN corepack enable
-RUN apk add --no-cache python3 alpine-sdk
-
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --prod --frozen-lockfile
-
-RUN pnpm deploy --filter=@imput/cobalt-api --prod /prod/api
-
 FROM base AS api
 WORKDIR /app
 
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
+
 COPY --from=build --chown=node:node /prod/api /app
 
-# Copy .git if it exists (for version info), ignore if not present
-RUN --mount=from=build,source=/app,target=/build \
-    if [ -d /build/.git ]; then cp -r /build/.git /app/.git; fi
-
 USER node
-
 EXPOSE 9000
 CMD [ "node", "src/cobalt" ]
