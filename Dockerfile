@@ -1,44 +1,29 @@
 FROM node:24-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
 
 FROM base AS build
 WORKDIR /app
+COPY . /app
 
-# Install build tools (needed for native deps)
+RUN corepack enable
 RUN apk add --no-cache python3 alpine-sdk
 
-# Copy source
-COPY . .
-
-# Install deps (NOT --prod in build stage)
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --prod --frozen-lockfile
 
-# Produce production deploy output
 RUN pnpm deploy --filter=@imput/cobalt-api --prod /prod/api
 
 FROM base AS api
 WORKDIR /app
-ENV NODE_ENV=production
 
 COPY --from=build --chown=node:node /prod/api /app
 
-# Create a minimal git repo + reflog so /app/.git/logs/HEAD exists
-USER root
-RUN apk add --no-cache git \
-  && cd /app \
-  && git init \
-  && git config user.email "docker@local" \
-  && git config user.name "Docker" \
-  && git config core.logAllRefUpdates true \
-  && git commit --allow-empty -m "container build" \
-  && chown -R node:node /app/.git
-USER node
-
+# Copy .git if it exists (for version info), ignore if not present
+RUN --mount=from=build,source=/app,target=/build \
+    if [ -d /build/.git ]; then cp -r /build/.git /app/.git; fi
 
 USER node
+
 EXPOSE 9000
-CMD ["node", "src/cobalt"]
-
+CMD [ "node", "src/cobalt" ]
