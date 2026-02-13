@@ -24,8 +24,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=build --chown=node:node /prod/api /app
-COPY --from=build --chown=node:node /app/.git /app/.git
+
+# Create a minimal git repo at build time (so "git root" exists)
+USER root
+RUN apk add --no-cache git \
+  && git init
 
 USER node
 EXPOSE 9000
 CMD ["node", "src/cobalt"]
+
