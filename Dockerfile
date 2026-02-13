@@ -25,10 +25,18 @@ ENV NODE_ENV=production
 
 COPY --from=build --chown=node:node /prod/api /app
 
-# Create a minimal git repo at build time (so "git root" exists)
+# Create a minimal git repo + reflog so /app/.git/logs/HEAD exists
 USER root
 RUN apk add --no-cache git \
-  && git init
+  && cd /app \
+  && git init \
+  && git config user.email "docker@local" \
+  && git config user.name "Docker" \
+  && git config core.logAllRefUpdates true \
+  && git commit --allow-empty -m "container build" \
+  && chown -R node:node /app/.git
+USER node
+
 
 USER node
 EXPOSE 9000
