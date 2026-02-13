@@ -13,17 +13,27 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --prod --frozen-lockfile
 
 RUN pnpm deploy --filter=@imput/cobalt-api --prod /prod/api
-
 FROM base AS api
 WORKDIR /app
+ENV NODE_ENV=production
 
 COPY --from=build --chown=node:node /prod/api /app
 
-# Copy .git if it exists (for version info), ignore if not present
-RUN --mount=from=build,source=/app,target=/build \
-    if [ -d /build/.git ]; then cp -r /build/.git /app/.git; fi
+# Create a minimal git repo so @imput/version-info won't crash
+USER root
+RUN apk add --no-cache git \
+  && git init /app \
+  && git -C /app config user.email "docker@local" \
+  && git -C /app config user.name "Docker" \
+  && git -C /app config core.logAllRefUpdates true \
+  && git -C /app commit --allow-empty -m "container build" \
+  && chown -R node:node /app/.git
 
 USER node
+
+EXPOSE 9000
+CMD ["node","src/cobalt"]
+
 
 EXPOSE 9000
 CMD [ "node", "src/cobalt" ]
