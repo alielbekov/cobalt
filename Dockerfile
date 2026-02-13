@@ -29,12 +29,13 @@ RUN apk add --no-cache git \
   && git config core.logAllRefUpdates true \
   && git commit --allow-empty -m "container build" \
   && chown -R node:node .git
+# Create entrypoint script to handle COOKIES_JSON env var
+RUN printf '#!/bin/sh\nif [ -n "$COOKIES_JSON" ]; then\n  echo "$COOKIES_JSON" > /app/cookies.json\n  chown node:node /app/cookies.json\nfi\nexec "$@"\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
 USER node
 
+ENV COOKIE_PATH=cookies.json
 
 EXPOSE 9000
-CMD ["node","src/cobalt"]
-
-
-EXPOSE 9000
-CMD [ "node", "src/cobalt" ]
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["node", "src/cobalt"]
