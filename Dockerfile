@@ -24,7 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=build --chown=node:node /prod/api /app
-RUN echo "unknown" > /app/COMMIT_SHA
+COPY --from=build --chown=node:node /app/.git /app/.git
 
 USER node
 EXPOSE 9000
